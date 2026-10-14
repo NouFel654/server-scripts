@@ -3,8 +3,6 @@
 # pylint: disable=too-many-lines
 """Defines the public tab in the gather UI."""
 
-from __future__ import annotations
-
 import copy
 import time
 from threading import Thread
@@ -15,12 +13,17 @@ from typing import TYPE_CHECKING, cast, override
 from bacommon.analytics import ClassicAnalyticsEvent
 from bauiv1lib.gather import GatherTab
 import bauiv1 as bui
+from bauiv1 import _commonassets, _classicassets
+from bauiv1 import _builtinassets
 import bascenev1 as bs
 
 if TYPE_CHECKING:
     from typing import Callable, Any
 
     from bauiv1lib.gather import GatherWindow
+
+# Module-level alias to keep long accessor chains under the line limit.
+_gs = _classicassets.strings.gather
 
 # Print a bit of info about pings, queries, etc.
 DEBUG_SERVER_COMMUNICATION = False
@@ -95,7 +98,6 @@ class UIRow:
         tab: PublicGatherTab,
     ) -> None:
         """Update for the given data."""
-        # pylint: disable=too-many-locals
         # pylint: disable=too-many-positional-arguments
 
         plus = bui.app.plus
@@ -113,7 +115,8 @@ class UIRow:
         hpos = 20
         vpos = sub_scroll_height - lineheight * index - 50
         self._name_widget = bui.textwidget(
-            text=bui.Lstr(value=party.name),
+            text=party.name,
+            literal=True,
             parent=columnwidget,
             size=(sub_scroll_width * 0.46, 20),
             position=(0 + hpos, 4 + vpos),
@@ -160,7 +163,7 @@ class UIRow:
             self._stats_button = bui.buttonwidget(
                 color=(0.3, 0.6, 0.94),
                 textcolor=(1.0, 1.0, 1.0),
-                label=bui.Lstr(resource='statsText'),
+                label=_classicassets.strings.ui.stats,
                 parent=columnwidget,
                 autoselect=True,
                 on_activate_call=bui.CallStrict(bui.open_url, url),
@@ -385,6 +388,7 @@ class PublicGatherTab(GatherTab):
         self._update_timer: bui.AppTimer | None = None
         self._host_scrollwidget: bui.Widget | None = None
         self._host_name_text: bui.Widget | None = None
+        self._host_password_text: bui.Widget | None = None
         self._host_toggle_button: bui.Widget | None = None
         self._last_server_list_query_time: float | None = None
         self._join_list_column: bui.Widget | None = None
@@ -462,9 +466,7 @@ class PublicGatherTab(GatherTab):
                 region_height,
                 playsound=True,
             ),
-            text=bui.Lstr(
-                resource='gatherWindow.' 'joinPublicPartyDescriptionText'
-            ),
+            text=_gs.join_public_party,
             glow_type='uniform',
         )
         self._host_text = bui.textwidget(
@@ -486,9 +488,7 @@ class PublicGatherTab(GatherTab):
                 region_height,
                 playsound=True,
             ),
-            text=bui.Lstr(
-                resource='gatherWindow.' 'hostPublicPartyDescriptionText'
-            ),
+            text=_gs.host_public_party,
             glow_type='uniform',
         )
         bui.widget(edit=self._join_text, up_widget=tab_button)
@@ -565,7 +565,7 @@ class PublicGatherTab(GatherTab):
     ) -> None:
         assert self._container
         if playsound:
-            bui.getsound('click01').play()
+            _builtinassets.audio.click01.get().play()
 
         # Reset our selection (prevents selecting something way down the
         # list if we switched away and came back).
@@ -611,7 +611,7 @@ class PublicGatherTab(GatherTab):
         )
         v = c_height - 35
         v -= 60
-        filter_txt = bui.Lstr(resource='filterText')
+        filter_txt = _commonassets.strings.actions.filter
         self._filter_text = bui.textwidget(
             parent=self._container,
             id=f'{self._idprefix}|filter',
@@ -639,7 +639,7 @@ class PublicGatherTab(GatherTab):
         )
 
         bui.textwidget(
-            text=bui.Lstr(resource='nameText'),
+            text=_commonassets.strings.values.name,
             parent=self._container,
             size=(0, 0),
             position=((c_width - sub_scroll_width) * 0.5 + 50, v - 8),
@@ -651,7 +651,7 @@ class PublicGatherTab(GatherTab):
             v_align='center',
         )
         bui.textwidget(
-            text=bui.Lstr(resource='gatherWindow.partySizeText'),
+            text=_gs.party_size,
             parent=self._container,
             size=(0, 0),
             position=(
@@ -666,7 +666,7 @@ class PublicGatherTab(GatherTab):
             v_align='center',
         )
         bui.textwidget(
-            text=bui.Lstr(resource='gatherWindow.pingText'),
+            text=_gs.ping,
             parent=self._container,
             size=(0, 0),
             position=(
@@ -739,9 +739,9 @@ class PublicGatherTab(GatherTab):
         c_width = region_width
         c_height = region_height - 20
         v = c_height - 35
-        v -= 25
+        v -= 20
         is_public_enabled = bs.get_public_party_enabled()
-        v -= 30
+        v -= 25
 
         bui.textwidget(
             parent=self._container,
@@ -753,17 +753,14 @@ class PublicGatherTab(GatherTab):
             flatness=1.0,
             color=(0.5, 0.46, 0.5),
             position=(region_width * 0.5, v + 10),
-            text=bui.Lstr(resource='gatherWindow.publicHostRouterConfigText'),
+            text=_gs.public_host_router_config,
         )
-        v -= 30
+        v -= 20
 
         # Nudge party name and size values to be mostly centered.
         xoffs = region_width * 0.5 - 500
 
-        party_name_text = bui.Lstr(
-            resource='gatherWindow.partyNameText',
-            fallback_resource='editGameListWindow.nameText',
-        )
+        party_name_text = _gs.party_name
         assert bui.app.classic is not None
         bui.textwidget(
             parent=self._container,
@@ -793,6 +790,7 @@ class PublicGatherTab(GatherTab):
         )
 
         v -= 60
+        party_password_text = _gs.password_optional
         bui.textwidget(
             parent=self._container,
             size=(0, 0),
@@ -802,10 +800,37 @@ class PublicGatherTab(GatherTab):
             scale=0.8,
             color=bui.app.ui_v1.infotextcolor,
             position=(210 + xoffs, v - 9),
-            text=bui.Lstr(
-                resource='maxPartySizeText',
-                fallback_resource='maxConnectionsText',
-            ),
+            text=party_password_text,
+        )
+        self._host_password_text = bui.textwidget(
+            parent=self._container,
+            id=f'{self._idprefix}|hostingpassword',
+            editable=True,
+            size=(535, 40),
+            position=(230 + xoffs, v - 30),
+            text=bui.app.config.get('Public Party Password', ''),
+            maxwidth=494,
+            max_chars=100,
+            password=True,
+            shadow=0.3,
+            flatness=1.0,
+            description=party_password_text.evaluate(),
+            autoselect=True,
+            v_align='center',
+            corner_scale=1.0,
+        )
+
+        v -= 60
+        bui.textwidget(
+            parent=self._container,
+            size=(0, 0),
+            h_align='right',
+            v_align='center',
+            maxwidth=200,
+            scale=0.8,
+            color=bui.app.ui_v1.infotextcolor,
+            position=(210 + xoffs, v - 9),
+            text=_gs.max_party_size,
         )
         self._host_max_party_size_value = bui.textwidget(
             parent=self._container,
@@ -839,18 +864,12 @@ class PublicGatherTab(GatherTab):
             label='+',
             autoselect=True,
         )
-        v -= 50
-        v -= 70
+        v -= 45
+        v -= 90
         if is_public_enabled:
-            label = bui.Lstr(
-                resource='gatherWindow.makePartyPrivateText',
-                fallback_resource='gatherWindow.stopAdvertisingText',
-            )
+            label = _gs.make_party_private
         else:
-            label = bui.Lstr(
-                resource='gatherWindow.makePartyPublicText',
-                fallback_resource='gatherWindow.startAdvertisingText',
-            )
+            label = _gs.make_party_public
         self._host_toggle_button = bui.buttonwidget(
             parent=self._container,
             id=f'{self._idprefix}|hosttoggle',
@@ -865,15 +884,18 @@ class PublicGatherTab(GatherTab):
             autoselect=True,
             up_widget=btn2,
         )
-        bui.widget(edit=self._host_name_text, down_widget=btn2)
-        bui.widget(edit=btn2, up_widget=self._host_name_text)
-        bui.widget(edit=btn1, up_widget=self._host_name_text)
+        bui.widget(
+            edit=self._host_name_text, down_widget=self._host_password_text
+        )
+        bui.widget(edit=self._host_password_text, down_widget=btn2)
+        bui.widget(edit=btn2, up_widget=self._host_password_text)
+        bui.widget(edit=btn1, up_widget=self._host_password_text)
         assert self._join_text is not None
         bui.widget(edit=self._join_text, down_widget=self._host_name_text)
         v -= 10
         self._host_status_text = bui.textwidget(
             parent=self._container,
-            text=bui.Lstr(resource='gatherWindow.' 'partyStatusNotPublicText'),
+            text=_gs.party_status_not_public,
             size=(0, 0),
             scale=0.7,
             flatness=1.0,
@@ -886,7 +908,7 @@ class PublicGatherTab(GatherTab):
         v -= 90
         bui.textwidget(
             parent=self._container,
-            text=bui.Lstr(resource='gatherWindow.dedicatedServerInfoText'),
+            text=_gs.dedicated_server_info,
             size=(0, 0),
             scale=0.7,
             flatness=1.0,
@@ -976,7 +998,10 @@ class PublicGatherTab(GatherTab):
         # If any new party infos have come in, apply some of them.
         self._process_pending_party_infos()
 
-        # Anytime we sign in/out, make sure we refresh our list.
+        # Anytime we sign in/out, make sure we refresh our list. (v1
+        # sign-in state on purpose, throughout this tab: the public
+        # party list and our own listing go through the v1 master
+        # server.)
         signed_in = plus.get_v1_account_state() == 'signed_in'
         if self._signed_in != signed_in:
             self._signed_in = signed_in
@@ -986,11 +1011,19 @@ class PublicGatherTab(GatherTab):
         self._update_party_lists()
 
         # If we've got a party-name text widget, keep its value plugged
-        # into our public host name.
+        # into our public host name — but only while we're actually
+        # advertising; otherwise the name would linger in things like
+        # LAN-scan responses after we stop. (The make-party-public press
+        # reads the widget directly, so nothing is lost by not syncing
+        # beforehand.)
         text = self._host_name_text
-        if text:
+        if text and bs.get_public_party_enabled():
             name = cast(str, bui.textwidget(query=self._host_name_text))
             bs.set_public_party_name(name)
+            # Same story for the password field.
+            pwtext = self._host_password_text
+            if pwtext:
+                bs.set_host_password(cast(str, bui.textwidget(query=pwtext)))
 
         # Update status text and loading spinner.
         if self._join_status_text:
@@ -998,7 +1031,7 @@ class PublicGatherTab(GatherTab):
             if not signed_in:
                 bui.textwidget(
                     edit=self._join_status_text,
-                    text=bui.Lstr(resource='notSignedInText'),
+                    text=_classicassets.strings.ui.not_signed_in_status,
                 )
                 bui.spinnerwidget(edit=self._join_status_spinner, visible=False)
             else:
@@ -1014,7 +1047,7 @@ class PublicGatherTab(GatherTab):
                     if self._have_server_list_response:
                         bui.textwidget(
                             edit=self._join_status_text,
-                            text=bui.Lstr(resource='errorText'),
+                            text=_commonassets.strings.values.error,
                         )
                         bui.spinnerwidget(
                             edit=self._join_status_spinner, visible=False
@@ -1057,7 +1090,7 @@ class PublicGatherTab(GatherTab):
         if self._have_valid_server_list and not self._parties_displayed:
             bui.textwidget(
                 edit=self._no_servers_found_text,
-                text=bui.Lstr(resource='noServersFoundText'),
+                text=_gs.no_servers_found,
             )
             return
 
@@ -1201,7 +1234,8 @@ class PublicGatherTab(GatherTab):
             )
         )
 
-        # If signed out or errored, show no parties.
+        # If signed out or errored, show no parties. (v1 sign-in state
+        # on purpose; see _update().)
         if (
             plus.get_v1_account_state() != 'signed_in'
             or not self._have_valid_server_list
@@ -1255,6 +1289,8 @@ class PublicGatherTab(GatherTab):
             self._last_server_list_query_time = now
             if DEBUG_SERVER_COMMUNICATION:
                 print('REQUESTING SERVER LIST')
+            # (v1 sign-in state on purpose: this query is a v1
+            # transaction.)
             if plus.get_v1_account_state() == 'signed_in':
                 plus.add_v1_account_transaction(
                     {
@@ -1351,66 +1387,38 @@ class PublicGatherTab(GatherTab):
             if data is None:
                 bui.textwidget(
                     edit=text,
-                    text=bui.Lstr(
-                        resource='gatherWindow.' 'partyStatusNoConnectionText'
-                    ),
+                    text=(
+                        _classicassets.strings.gather
+                    ).party_status_no_connection,
                     color=(1, 0, 0),
                 )
             else:
                 if not data.get('accessible', False):
-                    ex_line: str | bui.Lstr
+                    gstrs = _classicassets.strings.gather
+                    compose = _commonassets.strings.compose
+                    status = compose.line_pair(
+                        first=gstrs.party_status_not_public,
+                        second=gstrs.router_forwarding(
+                            port=str(bs.get_game_port())
+                        ),
+                    )
                     if self._local_address is not None:
-                        ex_line = bui.Lstr(
-                            value='\n${A} ${B}',
-                            subs=[
-                                (
-                                    '${A}',
-                                    bui.Lstr(
-                                        resource='gatherWindow.'
-                                        'manualYourLocalAddressText'
-                                    ),
-                                ),
-                                ('${B}', self._local_address),
-                            ],
+                        status = compose.line_pair(
+                            first=status,
+                            second=compose.spaced_pair(
+                                first=gstrs.your_local_address,
+                                second=self._local_address,
+                            ),
                         )
-                    else:
-                        ex_line = ''
                     bui.textwidget(
                         edit=text,
-                        text=bui.Lstr(
-                            value='${A}\n${B}${C}',
-                            subs=[
-                                (
-                                    '${A}',
-                                    bui.Lstr(
-                                        resource='gatherWindow.'
-                                        'partyStatusNotJoinableText'
-                                    ),
-                                ),
-                                (
-                                    '${B}',
-                                    bui.Lstr(
-                                        resource='gatherWindow.'
-                                        'manualRouterForwardingText',
-                                        subs=[
-                                            (
-                                                '${PORT}',
-                                                str(bs.get_game_port()),
-                                            )
-                                        ],
-                                    ),
-                                ),
-                                ('${C}', ex_line),
-                            ],
-                        ),
+                        text=status,
                         color=(1, 0, 0),
                     )
                 else:
                     bui.textwidget(
                         edit=text,
-                        text=bui.Lstr(
-                            resource='gatherWindow.' 'partyStatusJoinableText'
-                        ),
+                        text=_gs.party_status_joinable,
                         color=(0, 1, 0),
                     )
 
@@ -1419,7 +1427,7 @@ class PublicGatherTab(GatherTab):
         bui.textwidget(
             edit=self._host_status_text,
             color=(1, 1, 0),
-            text=bui.Lstr(resource='gatherWindow.' 'partyStatusCheckingText'),
+            text=_gs.party_status_checking,
         )
         bui.app.classic.master_server_v1_get(
             'bsAccessCheck',
@@ -1435,6 +1443,8 @@ class PublicGatherTab(GatherTab):
         plus = bui.app.plus
         assert plus is not None
 
+        # (v1 sign-in state on purpose: advertising a party registers it
+        # with the v1 master server.)
         if plus.get_v1_account_state() != 'signed_in':
             show_sign_in_prompt()
             return
@@ -1442,54 +1452,58 @@ class PublicGatherTab(GatherTab):
         name = cast(str, bui.textwidget(query=self._host_name_text))
         if name == '':
             bui.screenmessage(
-                bui.Lstr(resource='internal.invalidNameErrorText'),
+                _gs.invalid_name_error,
                 color=(1, 0, 0),
             )
-            bui.getsound('error').play()
+            _builtinassets.audio.error.get().play()
             return
         bs.set_public_party_name(name)
+        password = cast(str, bui.textwidget(query=self._host_password_text))
+        bs.set_host_password(password)
         cfg = bui.app.config
         cfg['Public Party Name'] = name
+        cfg['Public Party Password'] = password
         cfg.commit()
-        bui.getsound('shieldUp').play()
+        _classicassets.audio.shield_up.get().play()
         bs.set_public_party_enabled(True)
 
-        # In GUI builds we want to authenticate clients only when
-        # hosting public parties.
+        # Public parties require auth; private ones (the GUI default)
+        # only offer it.
         bs.set_authenticate_clients(True)
 
         self._do_status_check()
         bui.buttonwidget(
             edit=self._host_toggle_button,
-            label=bui.Lstr(
-                resource='gatherWindow.makePartyPrivateText',
-                fallback_resource='gatherWindow.stopAdvertisingText',
-            ),
+            label=_gs.make_party_private,
             on_activate_call=self._on_stop_advertising_press,
         )
 
     def _on_stop_advertising_press(self) -> None:
         bs.set_public_party_enabled(False)
 
-        # In GUI builds we want to authenticate clients only when
-        # hosting public parties.
-        bs.set_authenticate_clients(False)
-        bui.getsound('shieldDown').play()
+        # Clear the party name so things like LAN-scan responses don't
+        # keep advertising it once we're no longer public. (Our stored
+        # config value survives for pre-filling the UI next time.)
+        bs.set_public_party_name('')
+
+        # Ditto for the password requirement.
+        bs.set_host_password('')
+
+        # Back to the GUI default: offer auth (so joiners' cloud
+        # profiles come along) but never require it (offline/LAN
+        # parties keep working).
+        bs.set_authenticate_clients(True, optional=True)
+        _classicassets.audio.shield_down.get().play()
         text = self._host_status_text
         if text:
             bui.textwidget(
                 edit=text,
-                text=bui.Lstr(
-                    resource='gatherWindow.' 'partyStatusNotPublicText'
-                ),
+                text=_gs.party_status_not_public,
                 color=(0.6, 0.6, 0.6),
             )
         bui.buttonwidget(
             edit=self._host_toggle_button,
-            label=bui.Lstr(
-                resource='gatherWindow.makePartyPublicText',
-                fallback_resource='gatherWindow.startAdvertisingText',
-            ),
+            label=_gs.make_party_public,
             on_activate_call=self._on_start_advertizing_press,
         )
 
@@ -1506,7 +1520,7 @@ class PublicGatherTab(GatherTab):
         if party.queue is not None:
             from bauiv1lib.partyqueue import PartyQueueWindow
 
-            bui.getsound('swish').play()
+            bui.play_swish()
             PartyQueueWindow(party.queue, party.address, party.port)
         else:
             address = party.address

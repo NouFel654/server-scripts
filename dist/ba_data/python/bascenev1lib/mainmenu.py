@@ -2,15 +2,13 @@
 #
 """Session and Activity for displaying the main menu bg."""
 
-from __future__ import annotations
-
-import time
 import random
-import weakref
 from typing import TYPE_CHECKING, override
 
 from bacommon.locale import LocaleResolved
 import bascenev1 as bs
+from bascenev1 import _classicassets, _classiccatalogassets
+from bascenev1 import _uiv1assets
 import bauiv1 as bui
 
 if TYPE_CHECKING:
@@ -21,10 +19,18 @@ if TYPE_CHECKING:
     from bascenev1lib.actor.spazbot import DemoSpazBotSet
 
 
+def _tex(name: str) -> str:
+    """Qualified _classicassets ref for a logo texture name."""
+    # LEGACY: builds a qualified path by hand, which nothing should
+    # do -- the parts are private now precisely to flag it. Kept
+    # only until this file's callers hold handles instead; see
+    # docs/followups.md "hand-built asset paths".
+    # pylint: disable-next=protected-access
+    return f'{_classicassets._ASSET_PACKAGE}:textures/{name}'
+
+
 class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
     """Activity showing the rotating main menu bg stuff."""
-
-    _stdassets = bs.Dependency(bs.AssetPackage, 'stdassets@1')
 
     _did_initial_transition = False
 
@@ -44,7 +50,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         self._ts = 0.86
         self._language: str | None = None
         self._update_timer: bs.Timer | None = None
-        self._news: NewsDisplay | None = None
         self._attract_mode_timer: bs.Timer | None = None
         self._logo_rotate_timer: bs.Timer | None = None
 
@@ -68,9 +73,8 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         # Throw up some text that only clients can see so they know that
         # the host is navigating menus while they're just staring at an
         # empty-ish screen.
-        tval = bs.Lstr(
-            resource='hostIsNavigatingMenusText',
-            subs=[('${HOST}', plus.get_v1_account_display_string())],
+        tval = _classicassets.strings.main_menu.host_navigating_menus(
+            host=plus.get_v1_account_display_string()
         )
         self._host_is_navigating_text = bs.NodeActor(
             bs.newnode(
@@ -90,7 +94,10 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
 
         # Throw in test build info.
         self.beta_info = self.beta_info_2 = None
+        badge_text: bs.LangStr | str | None = None
         if env.variant is type(env.variant).TEST_BUILD:
+            badge_text = _classicassets.strings.main_menu.test_build
+        if badge_text is not None:
             pos = (230, 35)
             self.beta_info = bs.NodeActor(
                 bs.newnode(
@@ -112,8 +119,8 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
                 assert self.beta_info.node
                 bs.animate(self.beta_info.node, 'opacity', {1.3: 0, 1.8: 1.0})
 
-        trees_mesh = bs.getmesh('trees')
-        trees_texture = bs.gettexture('treesColor')
+        trees_mesh = _classicassets.meshes.trees.get()
+        trees_texture = _classicassets.textures.trees_color.get()
 
         gnode = self.globalsnode
         gnode.camera_mode = 'rotate'
@@ -145,11 +152,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
 
         random.seed()
 
-        # Need to update this for toolbar mode; currenly doesn't fit.
-        # if bool(False):
-        #     if not (env.demo or env.arcade):
-        #         self._news = NewsDisplay(self)
-
         self._attract_mode_timer = bs.Timer(
             3.12, self._update_attract_mode, repeat=True
         )
@@ -157,7 +159,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         app.classic.invoke_main_menu_ui()
 
     def _update(self) -> None:
-        # pylint: disable=too-many-locals
         # pylint: disable=too-many-statements
         app = bs.app
         assert app.classic is not None
@@ -167,16 +168,20 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
             custom_texture = self._get_custom_logo_tex_name()
             if custom_texture != self._custom_logo_tex_name:
                 self._custom_logo_tex_name = custom_texture
-                self._logo_node.texture = bs.gettexture(
-                    custom_texture if custom_texture is not None else 'logo'
+                self._logo_node.texture = bs.texture_from_ref(
+                    custom_texture
+                    if custom_texture is not None
+                    else _tex('logo')
                 )
                 self._logo_node.mesh_opaque = (
-                    None if custom_texture is not None else bs.getmesh('logo')
+                    None
+                    if custom_texture is not None
+                    else _classicassets.meshes.logo.get()
                 )
                 self._logo_node.mesh_transparent = (
                     None
                     if custom_texture is not None
-                    else bs.getmesh('logoTransparent')
+                    else _classicassets.meshes.logo_transparent.get()
                 )
 
         # If language has changed, recreate our logo text/graphics.
@@ -212,7 +217,7 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
                     113 + y + 1.2 * y_extra,
                     0.34 * base_scale,
                     delay=base_delay + 0.1,
-                    custom_texture='chTitleChar1',
+                    custom_texture=_tex('ch_title_char1'),
                     jitter_scale=2.0,
                     vr_depth_offset=-30,
                 )
@@ -223,7 +228,7 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
                     110 + y + 1.2 * y_extra,
                     0.31 * base_scale,
                     delay=base_delay + 0.15,
-                    custom_texture='chTitleChar2',
+                    custom_texture=_tex('ch_title_char2'),
                     jitter_scale=2.0,
                     vr_depth_offset=-30,
                 )
@@ -234,7 +239,7 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
                     110 + y + 1.2 * y_extra,
                     0.3 * base_scale,
                     delay=base_delay + 0.25,
-                    custom_texture='chTitleChar3',
+                    custom_texture=_tex('ch_title_char3'),
                     jitter_scale=2.0,
                     vr_depth_offset=-30,
                 )
@@ -245,7 +250,7 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
                     110 + y + 1.2 * y_extra,
                     0.31 * base_scale,
                     delay=base_delay + 0.3,
-                    custom_texture='chTitleChar4',
+                    custom_texture=_tex('ch_title_char4'),
                     jitter_scale=2.0,
                     vr_depth_offset=-30,
                 )
@@ -256,7 +261,7 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
                     105 + y + 1.2 * y_extra,
                     0.34 * base_scale,
                     delay=base_delay + 0.35,
-                    custom_texture='chTitleChar5',
+                    custom_texture=_tex('ch_title_char5'),
                     jitter_scale=2.0,
                     vr_depth_offset=-30,
                 )
@@ -379,8 +384,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         shadow: bool = False,
     ) -> None:
         # pylint: disable=too-many-branches
-        # pylint: disable=too-many-locals
-        # pylint: disable=too-many-statements
         if shadow:
             word_obj = bs.NodeActor(
                 bs.newnode(
@@ -491,7 +494,7 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         assert plus is not None
 
         if plus.get_v1_account_misc_read_val('easter', False):
-            return 'logoEaster'
+            return _tex('logo_easter')
         return None
 
     # Pop the logo and menu in.
@@ -507,18 +510,21 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         rotate: float = 0.0,
         vr_depth_offset: float = 0.0,
     ) -> None:
-        # pylint: disable=too-many-locals
         if custom_texture is None:
             custom_texture = self._get_custom_logo_tex_name()
         self._custom_logo_tex_name = custom_texture
-        ltex = bs.gettexture(
-            custom_texture if custom_texture is not None else 'logo'
+        ltex = bs.texture_from_ref(
+            custom_texture if custom_texture is not None else _tex('logo')
         )
-        mopaque = None if custom_texture is not None else bs.getmesh('logo')
+        mopaque = (
+            None
+            if custom_texture is not None
+            else _classicassets.meshes.logo.get()
+        )
         mtrans = (
             None
             if custom_texture is not None
-            else bs.getmesh('logoTransparent')
+            else _classicassets.meshes.logo_transparent.get()
         )
         logo_attrs = {
             'position': (x, y),
@@ -643,174 +649,17 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
             )
 
 
-class NewsDisplay:
-    """Wrangles news display."""
-
-    def __init__(self, activity: bs.Activity):
-        self._valid = True
-        self._message_duration = 10.0
-        self._message_spacing = 2.0
-        self._text: bs.NodeActor | None = None
-        self._activity = weakref.ref(activity)
-        self._phrases: list[str] = []
-        self._used_phrases: list[str] = []
-        self._phrase_change_timer: bs.Timer | None = None
-
-        # If we're signed in, fetch news immediately. Otherwise wait
-        # until we are signed in.
-        self._fetch_timer: bs.Timer | None = bs.Timer(
-            1.0, bs.WeakCallStrict(self._try_fetching_news), repeat=True
-        )
-        self._try_fetching_news()
-
-    # We now want to wait until we're signed in before fetching news.
-    def _try_fetching_news(self) -> None:
-        plus = bui.app.plus
-        assert plus is not None
-
-        if plus.get_v1_account_state() == 'signed_in':
-            self._fetch_news()
-            self._fetch_timer = None
-
-    def _fetch_news(self) -> None:
-        plus = bui.app.plus
-        assert plus is not None
-
-        assert bs.app.classic is not None
-        bs.app.classic.main_menu_last_news_fetch_time = time.time()
-
-        # UPDATE - We now just pull news from MRVs.
-        news = plus.get_v1_account_misc_read_val('n', None)
-        if news is not None:
-            self._got_news(news)
-
-    def _change_phrase(self) -> None:
-        from bascenev1lib.actor.text import Text
-
-        app = bs.app
-        assert app.classic is not None
-
-        # If our news is way out of date, lets re-request it; otherwise,
-        # rotate our phrase.
-        assert app.classic.main_menu_last_news_fetch_time is not None
-        if time.time() - app.classic.main_menu_last_news_fetch_time > 600.0:
-            self._fetch_news()
-            self._text = None
-        else:
-            if self._text is not None:
-                if not self._phrases:
-                    for phr in self._used_phrases:
-                        self._phrases.insert(0, phr)
-                val = self._phrases.pop()
-                if val == '__ACH__':
-                    vrmode = app.env.vr
-                    Text(
-                        bs.Lstr(resource='nextAchievementsText'),
-                        color=((1, 1, 1, 1) if vrmode else (0.95, 0.9, 1, 0.4)),
-                        host_only=True,
-                        maxwidth=200,
-                        position=(-300, -35),
-                        h_align=Text.HAlign.RIGHT,
-                        transition=Text.Transition.FADE_IN,
-                        scale=0.9 if vrmode else 0.7,
-                        flatness=1.0 if vrmode else 0.6,
-                        shadow=1.0 if vrmode else 0.5,
-                        h_attach=Text.HAttach.CENTER,
-                        v_attach=Text.VAttach.TOP,
-                        transition_delay=1.0,
-                        transition_out_delay=self._message_duration,
-                    ).autoretain()
-                    achs = [
-                        a
-                        for a in app.classic.ach.achievements
-                        if not a.complete
-                    ]
-                    if achs:
-                        ach = achs.pop(random.randrange(min(4, len(achs))))
-                        ach.create_display(
-                            -180,
-                            -35,
-                            1.0,
-                            outdelay=self._message_duration,
-                            style='news',
-                        )
-                    if achs:
-                        ach = achs.pop(random.randrange(min(8, len(achs))))
-                        ach.create_display(
-                            180,
-                            -35,
-                            1.25,
-                            outdelay=self._message_duration,
-                            style='news',
-                        )
-                else:
-                    spc = self._message_spacing
-                    keys = {
-                        spc: 0.0,
-                        spc + 1.0: 1.0,
-                        spc + self._message_duration - 1.0: 1.0,
-                        spc + self._message_duration: 0.0,
-                    }
-                    assert self._text.node
-                    bs.animate(self._text.node, 'opacity', keys)
-                    # {k: v
-                    #  for k, v in list(keys.items())})
-                    self._text.node.text = val
-
-    def _got_news(self, news: str) -> None:
-        # Run this stuff in the context of our activity since we need to
-        # make nodes and stuff.. should fix the serverget call so it.
-        activity = self._activity()
-        if activity is None or activity.expired:
-            return
-        with activity.context:
-            self._phrases.clear()
-
-            # Show upcoming achievements in non-vr versions (currently
-            # too hard to read in vr).
-            self._used_phrases = (['__ACH__'] if not bs.app.env.vr else []) + [
-                s for s in news.split('<br>\n') if s != ''
-            ]
-            self._phrase_change_timer = bs.Timer(
-                (self._message_duration + self._message_spacing),
-                bs.WeakCallStrict(self._change_phrase),
-                repeat=True,
-            )
-
-            assert bs.app.classic is not None
-            scl = (
-                1.2
-                if (bs.app.ui_v1.uiscale is bs.UIScale.SMALL or bs.app.env.vr)
-                else 0.8
-            )
-
-            color2 = (1, 1, 1, 1) if bs.app.env.vr else (0.7, 0.65, 0.75, 1.0)
-            shadow = 1.0 if bs.app.env.vr else 0.4
-            self._text = bs.NodeActor(
-                bs.newnode(
-                    'text',
-                    attrs={
-                        'v_attach': 'top',
-                        'h_attach': 'center',
-                        'h_align': 'center',
-                        'vr_depth': -20,
-                        'shadow': shadow,
-                        'flatness': 0.8,
-                        'v_align': 'top',
-                        'color': color2,
-                        'scale': scl,
-                        'maxwidth': 900.0 / scl,
-                        'position': (0, -10),
-                    },
-                )
-            )
-            self._change_phrase()
-
-
 def _preload1() -> None:
     """Pre-load some assets a second or two into the main menu.
 
-    Helps avoid hitches later on.
+    Helps avoid hitches later on. Only meshes and textures belong here:
+    one that isn't loaded yet when first drawn gets loaded inline on the
+    graphics thread (a visible hitch). Sounds are deliberately left out;
+    one that isn't loaded when first played gets loaded inline on the
+    audio thread, which costs a few milliseconds of latency on that one
+    sound and nothing visible, while preloading all of them here was
+    ~250ms of decode work at every launch on a phone (the factories
+    load theirs when a game builds them).
     """
     for mname in [
         'plasticEyesTransparent',
@@ -823,98 +672,65 @@ def _preload1() -> None:
         'windowBGBlotch',
     ]:
         bs.getmesh(mname)
-    for tname in ['playerLineup', 'lock']:
-        bs.gettexture(tname)
-    for tex in [
-        'iconRunaround',
-        'iconOnslaught',
-        'medalComplete',
-        'medalBronze',
-        'medalSilver',
-        'medalGold',
-        'characterIconMask',
-    ]:
-        bs.gettexture(tex)
-    bs.gettexture('bg')
-    from bascenev1lib.actor.powerupbox import PowerupBoxFactory
-
-    PowerupBoxFactory.get()
+    # Asset-package textures warm up through their wrappers.
+    _ = _classiccatalogassets.textures.character_icon_mask.get()
+    _ = _classicassets.textures.player_lineup.get()
+    _ = _uiv1assets.textures.lock.get()
+    _ = _classicassets.textures.icon_runaround.get()
+    _ = _classicassets.textures.icon_onslaught.get()
+    _ = _classicassets.textures.bg.get()
     bui.apptimer(0.1, _preload2)
 
 
 def _preload2() -> None:
-    # FIXME: Could integrate these loads with the classes that use them
-    #  so they don't have to redundantly call the load
-    #  (even if the actual result is cached).
+    # These mirror the meshes and textures the classic factories
+    # (PowerupBoxFactory, BombFactory, FlagFactory) load. We don't just
+    # instantiate the factories here because they load their sounds too.
     for mname in ['powerup', 'powerupSimple']:
         bs.getmesh(mname)
-    for tname in [
-        'powerupBomb',
-        'powerupSpeed',
-        'powerupPunch',
-        'powerupIceBombs',
-        'powerupStickyBombs',
-        'powerupShield',
-        'powerupImpactBombs',
-        'powerupHealth',
-    ]:
-        bs.gettexture(tname)
-    for sname in [
-        'powerup01',
-        'boxDrop',
-        'boxingBell',
-        'scoreHit01',
-        'scoreHit02',
-        'dripity',
-        'spawn',
-        'gong',
-    ]:
-        bs.getsound(sname)
-    from bascenev1lib.actor.bomb import BombFactory
-
-    BombFactory.get()
+    _ = _classicassets.textures.powerup_bomb.get()
+    _ = _classicassets.textures.powerup_speed.get()
+    _ = _classicassets.textures.powerup_punch.get()
+    _ = _classicassets.textures.powerup_ice_bombs.get()
+    _ = _classicassets.textures.powerup_sticky_bombs.get()
+    _ = _classicassets.textures.powerup_shield.get()
+    _ = _classicassets.textures.powerup_impact_bombs.get()
+    _ = _classicassets.textures.powerup_health.get()
+    _ = _classicassets.textures.powerup_land_mines.get()
+    _ = _classicassets.textures.powerup_curse.get()
     bui.apptimer(0.1, _preload3)
 
 
 def _preload3() -> None:
-    from bascenev1lib.actor.spazfactory import SpazFactory
-
     for mname in ['bomb', 'bombSticky', 'impactBomb']:
         bs.getmesh(mname)
-    for tname in [
-        'bombColor',
-        'bombColorIce',
-        'bombStickyColor',
-        'impactBombColor',
-        'impactBombColorLit',
-    ]:
-        bs.gettexture(tname)
-    for sname in ['freeze', 'fuse01', 'activateBeep', 'warnBeep']:
-        bs.getsound(sname)
-    SpazFactory.get()
+    _ = _classicassets.meshes.land_mine.get()
+    _ = _classicassets.meshes.tnt.get()
+    _ = _classicassets.textures.bomb_color.get()
+    _ = _classicassets.textures.bomb_color_ice.get()
+    _ = _classicassets.textures.bomb_sticky_color.get()
+    _ = _classicassets.textures.impact_bomb_color.get()
+    _ = _classicassets.textures.impact_bomb_color_lit.get()
+    _ = _classicassets.textures.land_mine.get()
+    _ = _classicassets.textures.land_mine_lit.get()
+    _ = _classicassets.textures.tnt.get()
     bui.apptimer(0.2, _preload4)
 
 
 def _preload4() -> None:
-    for tname in ['bar', 'meter', 'null', 'flagColor', 'achievementOutline']:
-        bs.gettexture(tname)
+    _ = _classicassets.textures.bar.get()
+    _ = _classicassets.textures.null.get()
+    _ = _classicassets.textures.flag_color.get()
+    _ = _classicassets.textures.achievement_outline.get()
     for mname in ['frameInset', 'meterTransparent', 'achievementOutline']:
         bs.getmesh(mname)
-    for sname in ['metalHit', 'metalSkid', 'refWhistle', 'achievement']:
-        bs.getsound(sname)
-    from bascenev1lib.actor.flag import FlagFactory
-
-    FlagFactory.get()
 
 
 class MainMenuSession(bs.Session):
     """Session that runs the main menu environment."""
 
     def __init__(self) -> None:
-        # Gather dependencies we'll need (just our activity).
-        self._activity_deps = bs.DependencySet(bs.Dependency(MainMenuActivity))
-
-        super().__init__([self._activity_deps])
+        super().__init__()
         self._locked = False
         self.setactivity(bs.newactivity(MainMenuActivity))
 

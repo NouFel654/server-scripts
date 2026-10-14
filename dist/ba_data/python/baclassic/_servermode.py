@@ -2,8 +2,6 @@
 #
 """Functionality related to running the game in server-mode."""
 
-from __future__ import annotations
-
 import sys
 import time
 import logging
@@ -188,13 +186,18 @@ class ServerController:
         return False
 
     def _execute_shutdown(self) -> None:
+        # Safe up-call: the featureset is fully imported by the time
+        # this runs; the cycle pylint sees is structural only.
+        # pylint: disable-next=cyclic-import
+        from bascenev1 import _classicassets
+
         if self._executing_shutdown:
             return
         self._executing_shutdown = True
         timestrval = time.strftime('%c')
         if self._shutdown_reason is ShutdownReason.RESTARTING:
             bascenev1.broadcastmessage(
-                babase.Lstr(resource='internal.serverRestartingText'),
+                _classicassets.strings.server.restarting,
                 color=(1, 0.5, 0.0),
             )
             print(
@@ -203,7 +206,7 @@ class ServerController:
             )
         else:
             bascenev1.broadcastmessage(
-                babase.Lstr(resource='internal.serverShuttingDownText'),
+                _classicassets.strings.server.shutting_down,
                 color=(1, 0.5, 0.0),
             )
             print(
@@ -274,7 +277,9 @@ class ServerController:
                 self._next_connectivity_warn_time = curtime + 5.0
             return
 
-        # Being signed in via v1 is a prerequisite.
+        # Being signed in via v1 is a prerequisite. (v1 sign-in state on
+        # purpose: headless servers have no v2 account; they sign in to
+        # v1 as 'Local', which the v1 master server's game list needs.)
         signed_in = plus.get_v1_account_state() == 'signed_in'
         if not signed_in:
             # Signing in to the local server account should not take long;
@@ -354,8 +359,6 @@ class ServerController:
 
     def _launch_server_session(self) -> None:
         """Kick off a host-session based on the current server config."""
-        # pylint: disable=too-many-branches
-        # pylint: disable=too-many-statements
         app = babase.app
         classic = app.classic
         plus = app.plus
@@ -364,6 +367,7 @@ class ServerController:
         appcfg = app.config
         sessiontype = self._get_session_type()
 
+        # (v1 sign-in state on purpose; see _prepare_to_serve().)
         if plus.get_v1_account_state() != 'signed_in':
             print(
                 'WARNING: launch_server_session() expects to run '
@@ -434,6 +438,9 @@ class ServerController:
         classic.teams_series_length = self._config.teams_series_length
         classic.ffa_series_length = self._config.ffa_series_length
 
+        classic.allow_punch_grab = self._config.allow_punch_grab
+        classic.legacy_spaz_physics = self._config.legacy_spaz_physics
+
         bascenev1.set_enable_default_kick_voting(
             self._config.enable_default_kick_voting
         )
@@ -443,6 +450,7 @@ class ServerController:
         bascenev1.set_public_party_max_size(self._config.max_party_size)
         bascenev1.set_public_party_queue_enabled(self._config.enable_queue)
         bascenev1.set_public_party_name(self._config.party_name)
+        bascenev1.set_host_password(self._config.password)
         bascenev1.set_public_party_stats_url(self._config.stats_url)
         bascenev1.set_public_party_public_address_ipv4(
             self._config.public_ipv4_address

@@ -2,12 +2,12 @@
 #
 """Provides a window which shows info about resource types."""
 
-from __future__ import annotations
-
 from typing import override, TYPE_CHECKING, assert_never
 
 from bauiv1lib.popup import PopupWindow
+from bauiv1lib.docui._layout import scale_like_windows
 import bauiv1 as bui
+from bauiv1 import _classicassets, _classiccatalogassets
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -25,12 +25,9 @@ class ResourceTypeInfoWindow(PopupWindow):
 
         self._uiopenstate = bui.UIOpenState(f'resourcetypeinfo{resource_type}')
 
-        uiscale = bui.app.ui_v1.uiscale
-        scale = (
-            2.0
-            if uiscale is bui.UIScale.SMALL
-            else 1.4 if uiscale is bui.UIScale.MEDIUM else 0.8
-        )
+        # Tuned at small ui-scale; medium and large keep that proportion
+        # to doc-ui windows.
+        scale = scale_like_windows(1.8)
         self._transitioning_out = False
         self._width = 570
         self._height = 400
@@ -54,7 +51,7 @@ class ResourceTypeInfoWindow(PopupWindow):
             color=bg_color,
             on_activate_call=self._on_cancel_press,
             autoselect=True,
-            label=bui.charstr(bui.SpecialChar.CLOSE),
+            label=bui.SpecialChar.CLOSE.value,
             textcolor=(1, 1, 1),
         )
 
@@ -62,15 +59,17 @@ class ResourceTypeInfoWindow(PopupWindow):
 
         max_rdesc_height = 160
 
-        rdesc: bui.Lstr | str
+        rdesc: bui.Lstr | bui.LangStr | str
 
         if resource_type == 'tickets':
             yoffs -= 20
-            rdesc = bui.Lstr(resource='ticketsDescriptionText')
-            texname = 'tickets'
+            rdesc = (
+                _classicassets.strings.resource_type_info.tickets_description
+            )
+            tex = _classiccatalogassets.textures.tickets.get()
         elif resource_type == 'tokens':
-            rdesc = bui.Lstr(resource='tokens.tokensDescriptionText')
-            texname = 'coin'
+            rdesc = _classicassets.strings.resource_type_info.tokens_description
+            tex = _classiccatalogassets.textures.coin.get()
             bwidth = 200
             bheight = 50
 
@@ -87,7 +86,7 @@ class ResourceTypeInfoWindow(PopupWindow):
                     ),
                     color=bg_color,
                     textcolor=(0.8, 0.8, 0.8),
-                    label=bui.Lstr(resource='tokens.getTokensText'),
+                    label=_classicassets.strings.resource_type_info.get_tokens,
                     size=(bwidth, bheight),
                     autoselect=True,
                     on_activate_call=bui.WeakCallStrict(
@@ -97,10 +96,10 @@ class ResourceTypeInfoWindow(PopupWindow):
 
         elif resource_type == 'trophies':
             rdesc = 'TODO: Will show trophies & league rankings.'
-            texname = 'crossOut'
+            tex = _classicassets.textures.cross_out.get()
         elif resource_type == 'xp':
             rdesc = 'TODO: Will describe xp/levels.'
-            texname = 'crossOut'
+            tex = _classicassets.textures.cross_out.get()
         else:
             assert_never(resource_type)
 
@@ -109,7 +108,7 @@ class ResourceTypeInfoWindow(PopupWindow):
             parent=self.root_widget,
             position=(self._width * 0.5 - imgsize * 0.5, yoffs + 5.0),
             size=(imgsize, imgsize),
-            texture=bui.gettexture(texname),
+            texture=tex,
         )
 
         bui.textwidget(
@@ -142,5 +141,5 @@ class ResourceTypeInfoWindow(PopupWindow):
 
     @override
     def on_popup_cancel(self) -> None:
-        bui.getsound('swish').play()
+        bui.play_swish()
         self._transition_out()

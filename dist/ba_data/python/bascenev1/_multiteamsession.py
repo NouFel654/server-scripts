@@ -2,12 +2,10 @@
 #
 """Functionality related to teams sessions."""
 
-from __future__ import annotations
-
 import copy
 import random
 import logging
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, overload, override
 
 import babase
 
@@ -15,11 +13,15 @@ import _bascenev1
 from bascenev1._session import Session
 
 if TYPE_CHECKING:
-    from typing import Any, Sequence
+    from typing import Any, Literal
 
     import bascenev1
 
+#: Default RGB colors for the two teams in a :class:`MultiTeamSession`,
+#: used when a session doesn't specify its own.
 DEFAULT_TEAM_COLORS = ((0.1, 0.25, 1.0), (1.0, 0.25, 0.2))
+
+#: Default display names for the two teams in a :class:`MultiTeamSession`.
 DEFAULT_TEAM_NAMES = ('Blue', 'Red')
 
 
@@ -54,11 +56,7 @@ class MultiTeamSession(Session):
             team_names = None
             team_colors = None
 
-        # print('FIXME: TEAM BASE SESSION WOULD CALC DEPS.')
-        depsets: Sequence[bascenev1.DependencySet] = []
-
         super().__init__(
-            depsets,
             team_names=team_names,
             team_colors=team_colors,
             min_players=1,
@@ -68,7 +66,9 @@ class MultiTeamSession(Session):
         self._series_length: int = int(cfg.get('Teams Series Length', 7))
         self._ffa_series_length: int = int(cfg.get('FFA Series Length', 24))
 
-        show_tutorial = cfg.get('Show Tutorial', True)
+        show_tutorial = (
+            cfg.get('Show Tutorial', True) and self.allows_tutorial()
+        )
 
         # Special case: don't show tutorial while stress testing.
         if classic.stress_test_update_timer is not None:
@@ -97,7 +97,16 @@ class MultiTeamSession(Session):
 
         playlists = cfg.get(self._playlists_var, {})
 
-        if (
+        # (None from us; a subclass may say otherwise.)
+        # pylint: disable-next=assignment-from-none
+        fixed_playlist = self.get_fixed_playlist()
+        if fixed_playlist is not None:
+            # A session that says what it plays: the player's own
+            # choice of playlist (and of its order) doesn't come into
+            # it.
+            playlist = copy.deepcopy(fixed_playlist)
+            self._playlist_randomize = False
+        elif (
             self._playlist_name != '__default__'
             and self._playlist_name in playlists
         ):
@@ -147,6 +156,28 @@ class MultiTeamSession(Session):
         # Start in our custom join screen.
         self.setactivity(_bascenev1.newactivity(MultiTeamJoinActivity))
 
+    def get_fixed_playlist(self) -> list[dict[str, Any]] | None:
+        """Return the playlist this session always plays, if it has one.
+
+        None (the default) plays whichever playlist the player has
+        chosen in their config. A subclass made for one purpose (a
+        session that exists to show one game, say) can return its own:
+        entries as a config playlist holds them, a ``type`` and
+        ``settings`` each. It is asked while the session is being set
+        up, before its own ``__init__`` has returned.
+        """
+        return None
+
+    def allows_tutorial(self) -> bool:
+        """Return whether this session may open with the tutorial.
+
+        A player who hasn't seen the tutorial gets it at the start of
+        their first session; a session that isn't a first game in that
+        sense can say no here. (Asked during setup, as
+        :meth:`get_fixed_playlist` is.)
+        """
+        return True
+
     def get_ffa_series_length(self) -> int:
         """Return free-for-all series length."""
         return self._ffa_series_length
@@ -155,13 +186,34 @@ class MultiTeamSession(Session):
         """Return teams series length."""
         return self._series_length
 
-    def get_next_game_description(self) -> babase.Lstr:
-        """Returns a description of the next game on deck."""
+    @overload
+    def get_next_game_description(
+        self, *, langstr: Literal[False] = False
+    ) -> babase.Lstr: ...
+
+    @overload
+    def get_next_game_description(
+        self, *, langstr: Literal[True]
+    ) -> babase.LangStr: ...
+
+    def get_next_game_description(
+        self, *, langstr: bool = False
+    ) -> babase.Lstr | babase.LangStr:
+        """Returns a description of the next game on deck.
+
+        Pass ``langstr=True`` to receive a :class:`~babase.LangStr`. The
+        legacy :class:`~babase.Lstr` form goes away when api 9 support
+        ends.
+        """
         # pylint: disable=cyclic-import
         from bascenev1._gameactivity import GameActivity
 
         gametype: type[GameActivity] = self._next_game_spec['resolved_type']
         assert issubclass(gametype, GameActivity)
+        if langstr:
+            return gametype.get_settings_display_string(
+                self._next_game_spec, langstr=True
+            )
         return gametype.get_settings_display_string(self._next_game_spec)
 
     def get_game_number(self) -> int:
@@ -277,12 +329,16 @@ class MultiTeamSession(Session):
         or whatnot, along with a possible audio
         announcement of the same.
         """
+        # Safe up-call: bascenev1 is fully imported by the time
+        # this runs; the cycle pylint sees is structural only.
+        # pylint: disable-next=cyclic-import
+        from bascenev1 import _classicassets
+
         # pylint: disable=cyclic-import
         from bascenev1._gameutils import cameraflash
-        from bascenev1._freeforallsession import FreeForAllSession
         from bascenev1._messages import CelebrateMessage
 
-        _bascenev1.timer(delay, _bascenev1.getsound('boxingBell').play)
+        _bascenev1.timer(delay, _classicassets.audio.boxing_bell.get().play)
 
         if announce_winning_team:
             winning_sessionteam = results.winning_sessionteam
@@ -295,14 +351,10 @@ class MultiTeamSession(Session):
                         player.actor.handlemessage(celebrate_msg)
                 cameraflash()
 
-                # Some languages say "FOO WINS" different for teams vs players.
-                if isinstance(self, FreeForAllSession):
-                    wins_resource = 'winsPlayerText'
-                else:
-                    wins_resource = 'winsTeamText'
-                wins_text = babase.Lstr(
-                    resource=wins_resource,
-                    subs=[('${NAME}', winning_sessionteam.name)],
+                # The legacy player-vs-team split existed only
+                # for translation coverage; the text is identical.
+                wins_text = _classicassets.strings.multi_team.wins(
+                    name=winning_sessionteam.name
                 )
                 activity.show_zoom_message(
                     wins_text,

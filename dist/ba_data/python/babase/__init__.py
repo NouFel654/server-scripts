@@ -31,18 +31,20 @@ from _babase import (
     AppTimer,
     atexit,
     asset_loads_allowed,
+    brightened_color,
     fullscreen_control_available,
     fullscreen_control_get,
     fullscreen_control_key_shortcut,
     fullscreen_control_set,
     can_display_chars,
-    charstr,
-    clipboard_get_text,
+    clipboard_get_text_async,
     clipboard_has_text,
     clipboard_is_supported,
     clipboard_set_text,
     ContextCall,
     ContextRef,
+    crash,
+    device_haptics_supported,
     displaytime,
     displaytimer,
     DisplayTimer,
@@ -51,20 +53,22 @@ from _babase import (
     Env,
     fade_screen,
     fatal_error,
+    get_auto_screen_inset_amount,
     get_display_resolution,
     get_immediate_return_code,
     get_input_idle_time,
-    get_low_level_config_value,
     get_max_graphics_quality,
+    get_msaa_sample_counts,
     get_replays_dir,
     get_string_height,
     get_string_width,
     get_suppress_config_and_state_writes,
     get_ui_scale,
-    get_v1_cloud_log_file_path,
+    get_virtual_outer_rect,
     get_virtual_safe_area_size,
     get_virtual_screen_size,
-    getsimplesound,
+    apsimplesoundget,
+    hasgyro,
     has_user_run_commands,
     have_permission,
     in_logic_thread,
@@ -73,6 +77,7 @@ from _babase import (
     request_main_ui,
     is_os_playing_music,
     is_xcode_build,
+    LangStr,
     lock_all_input,
     mac_music_app_get_playlists,
     mac_music_app_get_volume,
@@ -100,15 +105,18 @@ from _babase import (
     reload_hooks,
     reload_media,
     request_permission,
+    resolve_legacy_asset_name,
     safecolor,
     screenmessage,
     set_analytics_screen,
-    set_low_level_config_value,
+    set_app_exit_code,
+    set_asset_name_compat_versions,
     set_thread_name,
     set_main_ui_input_device,
     set_account_sign_in_state,
     set_ui_scale,
     show_progress_bar,
+    split_text_into_lines,
     shutdown_suppress_begin,
     shutdown_suppress_end,
     shutdown_suppress_count,
@@ -122,8 +130,14 @@ from _babase import (
     user_agent_string,
     user_ran_commands,
     Vec3,
+    warm_up_string_measure,
     workspaces_in_use,
+    wrap_text,
 )
+
+# Deprecated names deliberately kept in the public api for compat;
+# imported separately so the deprecation ignore stays targeted.
+from _babase import clipboard_get_text  # type: ignore[deprecated]
 
 from babase._accountv2 import AccountV2Handle, AccountV2Subsystem
 from babase._analytics import AnalyticsSubsystem
@@ -131,26 +145,50 @@ from babase._app import App, AppState
 from babase._appcomponent import AppComponentSubsystem
 from babase._appconfig import commit_app_config
 from babase._appintent import AppIntent, AppIntentDefault, AppIntentExec
-from babase._appmode import AppMode
+from babase._asset_packages import (
+    check_asset_package_load,
+    loaded_asset_package_apvernums,
+    asset_package_bucket_paths,
+    asset_package_string_count,
+)
+from babase._assetref import (
+    SimpleSoundHandle,
+    getsimplesound,
+    simple_sound_from_ref,
+    TextureHandle,
+    MeshHandle,
+    CubeMapTextureHandle,
+)
+from babase._generated.base_asset_set import (
+    BaseAssetSet,
+    set_base_asset_set,
+)
+from babase._appmode import (
+    AppMode,
+    AppModeConfig,
+    ControlPermission,
+    ControlPermissionRequest,
+)
 from babase._appsubsystem import AppSubsystem
 from babase._appmodeselector import AppModeSelector
 from babase._appconfig import AppConfig
 from babase._apputils import (
     AppHealthSubsystem,
-    get_remote_app_name,
-    handle_leftover_v1_cloud_log_file,
     is_browser_likely_available,
     utc_now_cloud,
 )
+from babase._cloudloggercontrol import handle_cloud_logger_config_changed
+from babase._logreporting import get_log_reporter
 from babase._cloud import CloudSubscription
 from babase._devconsole import (
     DevConsoleButtonDef,
     DevConsoleSubsystem,
     DevConsoleTab,
     DevConsoleTabEntry,
+    DevConsoleToggleDef,
 )
-from babase._discord import DiscordSubsystem
 from babase._emptyappmode import EmptyAppMode
+from babase._constructmode import ConstructAppMode
 from babase._error import (
     ActivityNotFoundError,
     ActorNotFoundError,
@@ -170,50 +208,91 @@ from babase._error import (
 from babase._gc import GarbageCollectionSubsystem
 from babase._general import (
     AppTime,
-    Call,
     CallPartial,
     CallStrict,
     DisplayTime,
     Existable,
-    WeakCall,
     WeakCallPartial,
     WeakCallStrict,
     existing,
     get_type_name,
     getclass,
+    logic_thread_submit,
     storagename,
     verify_object_death,
 )
-from babase._language import LanguageSubsystem, Lstr
+from babase._general import Call  # type: ignore[deprecated]
+from babase._general import WeakCall  # type: ignore[deprecated]
+from babase._language import (
+    LangStrDir,
+    LanguageSubsystem,
+    Lstr,
+    get_legacy_langdata,
+    langstr_value,
+    resolve_langstrs,
+    translate_server_text,
+    wrapper_langstr,
+)
 from babase._locale import LocaleSubsystem
 from babase._logging import (
     accountlog,
     applog,
+    assetmanagerlog,
+    audiolog,
     balog,
     lifecyclelog,
     netlog,
     uilog,
+    userlog,
 )
-from babase._login import LoginAdapter, LoginInfo
-from babase._mgen.enums import (
-    InputType,
-    Permission,
-    QuitType,
-    SpecialChar,
-    UIScale,
-)
+from babase._login import LoginAdapter, LoginInfo, discord_sign_in
 from babase._math import normalized_color, is_point_in_box, vec3validate
 from babase._meta import MetadataSubsystem
+from babase._assetsubsystem import (
+    AssetSubsystem,
+    make_progress_reporter,
+    ResolveResult,
+    ResolveProgress,
+    ResolvePhase,
+    AssetResolveError,
+)
 from babase._env import DEFAULT_REQUEST_TIMEOUT_SECONDS
 from babase._net import get_ip_address_type, NetworkSubsystem
 from babase._plugin import PluginSpec, Plugin, PluginSubsystem
-from babase._stringedit import StringEditAdapter, StringEditSubsystem
+from babase._simpledialog import SimpleDialog
+from babase._stringedit import (
+    StringEditAdapter,
+    StringEditKind,
+    StringEditSubsystem,
+)
 from babase._text import timestring
+
+# (Deprecated; kept for compat. See the note on deprecated names above.)
+from babase._text import charstr  # type: ignore[deprecated]
 from babase._workspace import WorkspaceSubsystem
 
-_babase.app = app = App()
+# The engine's special-char list lives in bacommon so servers and
+# tools can share it; the C++ side is generated from it.
+from bacommon.text import SpecialChar
+
+# Enums shared with the native layer live there too (their C++ twins
+# are generated from them, for every project including base-less ones).
+from bacommon.nativeenums import (
+    InputType,
+    Permission,
+    QuitType,
+    SoundPriority,
+    UIScale,
+)
+
+#: The :class:`~babase.App` singleton for the current process. Also
+#: exposed at ``bauiv1.app``, ``bascenev1.app``, etc. — they all
+#: refer to this same object.
+app = App()
+_babase.app = app
 
 __all__ = [
+    'simple_sound_from_ref',
     'accountlog',
     'AccountV2Handle',
     'AccountV2Subsystem',
@@ -232,6 +311,9 @@ __all__ = [
     'AppIntentDefault',
     'AppIntentExec',
     'AppMode',
+    'AppModeConfig',
+    'ControlPermission',
+    'ControlPermissionRequest',
     'AppState',
     'applog',
     'appname',
@@ -244,8 +326,13 @@ __all__ = [
     'apptimer',
     'AppTimer',
     'asset_loads_allowed',
+    'assetmanagerlog',
+    'audiolog',
+    'AssetSubsystem',
+    'AssetResolveError',
     'atexit',
     'balog',
+    'brightened_color',
     'Call',
     'CallPartial',
     'CallStrict',
@@ -256,6 +343,7 @@ __all__ = [
     'can_display_chars',
     'charstr',
     'clipboard_get_text',
+    'clipboard_get_text_async',
     'clipboard_has_text',
     'clipboard_is_supported',
     'CloudSubscription',
@@ -264,17 +352,21 @@ __all__ = [
     'ContextCall',
     'ContextError',
     'ContextRef',
+    'crash',
     'DelegateNotFoundError',
     'DevConsoleButtonDef',
     'DevConsoleTab',
     'DevConsoleTabEntry',
+    'DevConsoleToggleDef',
     'DevConsoleSubsystem',
-    'DiscordSubsystem',
+    'device_haptics_supported',
     'DisplayTime',
     'displaytime',
     'displaytimer',
     'DisplayTimer',
+    'discord_sign_in',
     'do_once',
+    'ConstructAppMode',
     'EmptyAppMode',
     'env',
     'Env',
@@ -283,25 +375,29 @@ __all__ = [
     'fade_screen',
     'fatal_error',
     'GarbageCollectionSubsystem',
+    'get_auto_screen_inset_amount',
     'get_display_resolution',
     'get_immediate_return_code',
     'get_input_idle_time',
     'get_ip_address_type',
-    'get_low_level_config_value',
+    'get_legacy_langdata',
     'get_max_graphics_quality',
-    'get_remote_app_name',
+    'get_msaa_sample_counts',
     'get_replays_dir',
     'get_string_height',
     'get_string_width',
     'get_suppress_config_and_state_writes',
     'get_type_name',
     'get_ui_scale',
+    'get_virtual_outer_rect',
     'get_virtual_safe_area_size',
     'get_virtual_screen_size',
-    'get_v1_cloud_log_file_path',
     'getclass',
+    'apsimplesoundget',
     'getsimplesound',
-    'handle_leftover_v1_cloud_log_file',
+    'get_log_reporter',
+    'handle_cloud_logger_config_changed',
+    'hasgyro',
     'has_user_run_commands',
     'have_permission',
     'in_logic_thread',
@@ -316,12 +412,20 @@ __all__ = [
     'is_point_in_box',
     'is_xcode_build',
     'LanguageSubsystem',
+    'check_asset_package_load',
+    'loaded_asset_package_apvernums',
+    'asset_package_bucket_paths',
+    'asset_package_string_count',
     'LocaleSubsystem',
     'lifecyclelog',
+    'LangStr',
+    'LangStrDir',
     'lock_all_input',
+    'logic_thread_submit',
     'LoginAdapter',
     'LoginInfo',
     'Lstr',
+    'make_progress_reporter',
     'mac_music_app_get_playlists',
     'mac_music_app_get_volume',
     'mac_music_app_init',
@@ -359,28 +463,46 @@ __all__ = [
     'quit',
     'QuitType',
     'reload_hooks',
+    'langstr_value',
     'reload_media',
     'request_permission',
+    'resolve_langstrs',
+    'translate_server_text',
+    'ResolveResult',
+    'ResolveProgress',
+    'ResolvePhase',
+    'resolve_legacy_asset_name',
     'safecolor',
     'screenmessage',
     'SessionNotFoundError',
     'SessionPlayerNotFoundError',
     'SessionTeamNotFoundError',
     'set_analytics_screen',
-    'set_low_level_config_value',
+    'set_app_exit_code',
+    'set_asset_name_compat_versions',
     'set_main_ui_input_device',
     'set_thread_name',
     'set_account_sign_in_state',
     'set_ui_scale',
     'show_progress_bar',
+    'split_text_into_lines',
     'shutdown_suppress_begin',
     'shutdown_suppress_end',
     'shutdown_suppress_count',
+    'SimpleDialog',
     'SimpleSound',
+    'SimpleSoundHandle',
+    'set_base_asset_set',
+    'BaseAssetSet',
+    'CubeMapTextureHandle',
+    'TextureHandle',
+    'MeshHandle',
     'suppress_config_and_state_writes',
+    'SoundPriority',
     'SpecialChar',
     'storagename',
     'StringEditAdapter',
+    'StringEditKind',
     'StringEditSubsystem',
     'supports_max_fps',
     'supports_vsync',
@@ -388,6 +510,7 @@ __all__ = [
     'TeamNotFoundError',
     'timestring',
     'uilog',
+    'userlog',
     'UIScale',
     'unlock_all_input',
     'update_internal_logger_levels',
@@ -397,12 +520,15 @@ __all__ = [
     'Vec3',
     'vec3validate',
     'verify_object_death',
+    'warm_up_string_measure',
     'WeakCall',
     'WeakCallPartial',
     'WeakCallStrict',
     'WidgetNotFoundError',
     'workspaces_in_use',
     'WorkspaceSubsystem',
+    'wrap_text',
+    'wrapper_langstr',
     'DEFAULT_REQUEST_TIMEOUT_SECONDS',
 ]
 
