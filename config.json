@@ -1,7 +1,7 @@
 {
     "admins": [
-        "a-YOUR-ID-HERE",
-        "a-ANOTHER-ID-HERE"
+        "pb-IF4iUEYmUg==",
+        ""
     ],
     "allow_punch_grab": false,
     "authenticate_clients": true,
@@ -18,7 +18,7 @@
     "log_levels": null,
     "max_party_size": 6,
     "party_is_public": true,
-    "party_name": "BombSquad Community Server 1.8",
+    "party_name": "🥇💥💕Sun kitto🌿🗡🌸",
     "password": null,
     "player_rejoin_cooldown": 10,
     "playlist_code": 622903,
@@ -28,7 +28,7 @@
     "protocol_version": 38,
     "public_ipv4_address": "123.123.123.123",
     "public_ipv6_address": "123A::A123:23A1:A312:12A3:A213:2A13",
-    "session_max_players_override": 8,
+    "session_max_players_override": 12,
     "session_type": "teams",
     "show_tutorial": false,
     "stats_url": "https://discord.gg/ucyaesh",
