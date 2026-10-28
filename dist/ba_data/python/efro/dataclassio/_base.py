@@ -1,3 +1,5 @@
+from typing import Any
+
 # Released under the MIT License. See LICENSE for details.
 #
 """Core components of dataclassio."""
