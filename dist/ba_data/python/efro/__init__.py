@@ -1,3 +1,7 @@
+from __future__ import annotations
+import typing
+from typing import Any, Callable, TYPE_CHECKING
+
 # Released under the MIT License. See LICENSE for details.
 #
 """Common bits of functionality shared between all Efro's projects.
