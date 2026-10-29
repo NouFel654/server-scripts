@@ -24,30 +24,30 @@
     "playlist_code": 622903,
     "playlist_inline": [],
     "playlist_shuffle": true,
-    "port": 43211,
+    "port": 43210,
     "protocol_version": 38,
     "public_ipv4_address": "123.123.123.123",
     "public_ipv6_address": "123A::A123:23A1:A312:12A3:A213:2A13",
     "session_max_players_override": 12,
     "session_type": "teams",
     "show_tutorial": false,
-    "stats_url": "https://discord.gg/ucyaesh",
+    "stats_url": "https://discord.gg/qNV5kZ5fP",
     "stress_test_players": null,
     "team_colors": [
         [
             0.1,
-            0.25,
-            1
+            0.1,
+            0.1
         ],
         [
-            1,
-            0.25,
-            0.2
+            1.0,
+            0.8,
+            0.9
         ]
     ],
     "team_names": [
-        "Red",
-        "Blue"
+        "black sun",
+        "white lol"
     ],
     "teams_series_length": 7,
     "unclean_exit_minutes": 90
