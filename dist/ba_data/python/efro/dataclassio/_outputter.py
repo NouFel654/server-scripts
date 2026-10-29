@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Any, Callable, TYPE_CHECKING
+
 # Released under the MIT License. See LICENSE for details.
 #
 """Functionality for dataclassio related to exporting data from dataclasses."""
