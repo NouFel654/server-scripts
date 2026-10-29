@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Any, Callable
+
 # EfroSynced from ballistica-internal.
 # EFRO_SYNC_HASH=108254279322450116963957420935737493125
 #
