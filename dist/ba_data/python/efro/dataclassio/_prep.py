@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Any
+
 # Released under the MIT License. See LICENSE for details.
 #
 """Functionality for prepping types for use with dataclassio."""
@@ -25,7 +28,6 @@ from efro.dataclassio._base import (
 )
 
 if TYPE_CHECKING:
-    from typing import Any
     from efro.dataclassio._base import IOAttrs
 
 # Use a single logger for all dataclassio stuff.
