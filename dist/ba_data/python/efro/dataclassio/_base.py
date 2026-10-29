@@ -1,4 +1,5 @@
-from typing import Any
+from __future__ import annotations
+from typing import Any, Self
 
 # Released under the MIT License. See LICENSE for details.
 #
@@ -14,7 +15,7 @@ from typing import TYPE_CHECKING, get_args, override, final
 from typing import _AnnotatedAlias  # type: ignore
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Literal, ClassVar, Self
+    from typing import Callable, Literal, ClassVar
 
 # Types which we can pass through as-is.
 SIMPLE_TYPES = {int, bool, str, float, type(None)}
@@ -727,7 +728,7 @@ def parse_annotated(anntype: Any) -> tuple[Any, IOAttrs | None]:
             elif isinstance(annarg, (str, int, float, bool)):
                 raise RuntimeError(
                     f'Raw {type(annarg)} found in Annotated[] entry:'
-                    f' {anntype}; this is probably not what you intended.'
+                    f' {anntype}; this is probably what you intended.'
                 )
         anntype = annargs[0]
     return anntype, ioattrs
