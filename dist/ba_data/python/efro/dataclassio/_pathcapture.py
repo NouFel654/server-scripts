@@ -1,7 +1,6 @@
 from __future__ import annotations
-from typing import Any
-# Released under the MIT License. See LICENSE for details.
-#
+from typing import Any, Callable, TYPE_CHECKING
+eleased under the MIT License. See LICENSE for details.
 """Functionality related to capturing nested dataclass paths."""
 
 import dataclasses
